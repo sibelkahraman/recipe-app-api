@@ -5,11 +5,26 @@ from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
-from core.models import Recipe
+from core.models import Recipe, Tag, Ingredient
 
-from recipe.serializers import RecipeSerializer
+from recipe.serializers import RecipeSerializer, RecipeDetailSerializer
 
 RECIPES_URL = reverse('recipe:recipe-list')
+
+
+def detail_url(recipe_id):
+    """Return recipe detail url"""
+    return reverse('recipe:recipe-detail', args=(recipe_id,))
+
+
+def sample_tag(user, name='sample tag'):
+    """Create and return sample tag"""
+    return Tag.objects.create(user=user, name=name)
+
+
+def sample_ingredient(user, name='sample ingredient'):
+    """Create and return sample ingredient"""
+    return Ingredient.objects.create(user=user, name=name)
 
 
 def sample_recipe(user, **params):
@@ -59,6 +74,7 @@ class PrivateRecipeAPITests(TestCase):
         self.assertEqual(res.data, serializer.data)
 
     def test_retrieved_data_limited_to_user(self):
+        """Test retrieved data is limited to requested user"""
         user2 = get_user_model().objects.create_user(
             'test2@gmail.com',
             'pass12344'
@@ -74,4 +90,17 @@ class PrivateRecipeAPITests(TestCase):
 
         self.assertEqual(res.status_code, status.HTTP_200_OK)
         self.assertEqual(len(res.data), 1)
+        self.assertEqual(res.data, serializer.data)
+
+    def test_retrieve_recipe_detail(self):
+        """Test recipe detail endpoint"""
+        recipe = sample_recipe(user=self.user)
+        recipe.tags.add(sample_tag(user=self.user))
+        recipe.ingredients.add(sample_ingredient(user=self.user))
+
+        url = detail_url(recipe.id)
+
+        res = self.client.get(url)
+
+        serializer = RecipeDetailSerializer(recipe)
         self.assertEqual(res.data, serializer.data)
